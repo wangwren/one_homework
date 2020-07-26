@@ -1,0 +1,15 @@
+<mapper namespace="com.wangwren.dao.IUserDao">
+
+    <!--namespace.id  确定唯一一个sql语句-->
+
+
+    <!--查询所有-->
+    <select id="findAll" resultType="com.wangwren.pojo.User">
+        select * from user
+    </select>
+
+    <!--根据条件查询,这里的 #{} 表示占位符，不能使用jdbc提供的? -->
+    <select id="findByCondition" resultType="com.wangwren.pojo.User" paramterType="com.wangwren.pojo.User">
+        select * from user where id = #{id} and username = #{username}
+    </select>
+</mapper>
