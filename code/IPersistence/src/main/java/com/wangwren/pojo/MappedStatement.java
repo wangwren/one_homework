@@ -22,6 +22,11 @@ public class MappedStatement {
      */
     private String sql;
 
+    /**
+     * sql语句类型：select insert update delete
+     */
+    private String sqlType;
+
     public String getId() {
         return id;
     }
@@ -52,5 +57,13 @@ public class MappedStatement {
 
     public void setSql(String sql) {
         this.sql = sql;
+    }
+
+    public String getSqlType() {
+        return sqlType;
+    }
+
+    public void setSqlType(String sqlType) {
+        this.sqlType = sqlType;
     }
 }

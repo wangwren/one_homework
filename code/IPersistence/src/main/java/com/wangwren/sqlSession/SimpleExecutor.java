@@ -6,21 +6,21 @@ import com.wangwren.pojo.MappedStatement;
 import com.wangwren.util.GenericTokenParser;
 import com.wangwren.util.ParameterMapping;
 import com.wangwren.util.ParameterMappingTokenHandler;
+import org.apache.log4j.Logger;
 
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class SimpleExecutor implements Executor {
 
+    private static final Logger LOGGER = Logger.getLogger(SimpleExecutor.class);
+
     /**
-     * 执行jdbc
+     * 执行jdbc,查询操作
      * @param configuration
      * @param mappedStatement
      * @param params
@@ -39,6 +39,8 @@ public class SimpleExecutor implements Executor {
         //将sql转成 select * from user where id = ? and username = ? 转换过程中还需要对#{}中的值进行存储
         String sql = mappedStatement.getSql();
         BoundSql boundSql = getBoundSql(sql);
+
+        LOGGER.debug("sql is " + boundSql.getSql());
 
         //3.获取预处理对象
         PreparedStatement preparedStatement = connection.prepareStatement(boundSql.getSql());
@@ -62,7 +64,7 @@ public class SimpleExecutor implements Executor {
             declaredField.setAccessible(true);
             //sql中的参数传递是一个对象，所以取第一个下标值。get方法：方法返回指定对象上由此Field表示的字段的值。就是如果目前该字段是id，那么get方法就会取get参数中的id字段的值
             Object o = declaredField.get(params[0]);
-            System.out.println("参数：" + o);
+            LOGGER.debug("参数：" + o);
             //设置参数从1开始计算
             preparedStatement.setObject(i + 1,o);
         }
@@ -102,6 +104,53 @@ public class SimpleExecutor implements Executor {
 
         }
         return (List<E>) list;
+    }
+
+    /**
+     * 插入、修改、删除操作
+     * @param configuration
+     * @param mappedStatement
+     * @param params
+     * @throws SQLException
+     */
+    @Override
+    public int doUpdate(Configuration configuration, MappedStatement mappedStatement, Object... params) throws Exception {
+        Connection connection = configuration.getDataSource().getConnection();
+        //获取sql ： insert into user values (#{id} ...) -> inser into user values (? ...)
+        String sql = mappedStatement.getSql();
+        //存放转换后的sql和参数名称
+        BoundSql boundSql = getBoundSql(sql);
+
+        LOGGER.debug("sql is " + boundSql.getSql());
+
+        //获取预处理对象
+        PreparedStatement preparedStatement = connection.prepareStatement(boundSql.getSql());
+        //获取参数类型
+        String paramterType = mappedStatement.getParamterType();
+        Class<?> paramterTypeClass = Class.forName(paramterType);
+
+        //获取占位符中的参数名称
+        List<ParameterMapping> parameterMappingList = boundSql.getParameterMappingList();
+        for (int i = 0; i < parameterMappingList.size(); i++) {
+            ParameterMapping parameterMapping = parameterMappingList.get(i);
+            String content = parameterMapping.getContent();
+
+            Field declaredField = paramterTypeClass.getDeclaredField(content);
+            declaredField.setAccessible(true);
+
+            //获取到params参数中对应declaredField字段的值
+            Object o = declaredField.get(params[0]);
+            LOGGER.debug("参数 is " + o);
+
+            //设置参数
+            preparedStatement.setObject(i + 1,o);
+        }
+
+        //执行sql
+        int count = preparedStatement.executeUpdate();
+
+        return count;
+
     }
 
     /**

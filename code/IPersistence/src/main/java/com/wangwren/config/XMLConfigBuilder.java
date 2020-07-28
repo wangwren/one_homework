@@ -67,6 +67,7 @@ public class XMLConfigBuilder {
             InputStream mapperInputStream = Resource.getResourceAsStream(resource);
             //解析mapper，封装mappedStatement，还要放到configuration中
             XMLMapperBuilder xmlMapperBuilder = new XMLMapperBuilder(configuration);
+
             xmlMapperBuilder.parse(mapperInputStream);
         }
 

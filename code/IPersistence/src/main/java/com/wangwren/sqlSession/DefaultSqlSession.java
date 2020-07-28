@@ -1,11 +1,15 @@
 package com.wangwren.sqlSession;
 
 import com.wangwren.pojo.Configuration;
+import com.wangwren.pojo.MappedStatement;
+import org.apache.log4j.Logger;
 
 import java.lang.reflect.*;
 import java.util.List;
 
 public class DefaultSqlSession implements SqlSession {
+
+    private static final Logger LOGGER = Logger.getLogger(DefaultSqlSession.class);
 
     private Configuration configuration;
 
@@ -53,6 +57,45 @@ public class DefaultSqlSession implements SqlSession {
     }
 
     /**
+     * 插入
+     * @param statementId
+     * @param params
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public int inser(String statementId, Object... params) throws Exception {
+
+        return this.doUpdate(statementId,params);
+    }
+
+    /**
+     * 更新
+     * @param statementId
+     * @param params
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public int update(String statementId, Object... params) throws Exception {
+
+        return this.doUpdate(statementId,params);
+    }
+
+    /**
+     * 删除
+     * @param statementId
+     * @param params
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public int delete(String statementId, Object... params) throws Exception {
+        return this.doUpdate(statementId,params);
+    }
+
+
+    /**
      * 使用JDK动态代理为Dao接口生成代理对象
      * @param mapperClass
      * @param <T>
@@ -73,6 +116,7 @@ public class DefaultSqlSession implements SqlSession {
              */
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+
                 //底层还是去执行JDBC代码，只是根据不同情况来调用selectList还是selectOne
                 //由于这种方式是得不到statementId的，这样就不知道执行哪个方法了，所以我们增加了新的规定
                 //即mapper.xml中的namespace为dao接口的全限定名，select标签的id为对应的dao接口方法名
@@ -84,23 +128,57 @@ public class DefaultSqlSession implements SqlSession {
                 String className = method.getDeclaringClass().getName();
                 String statementId = className + "." + name;
 
-                //获取被调用方法的返回值类型
-                Type genericReturnType = method.getGenericReturnType();
-                if (genericReturnType instanceof ParameterizedType) {
-                    //判断是否进行了 泛型类型参数化;即方法的返回值是否带有泛型，如果有则执行selectList
-                    List<Object> objects = selectList(statementId, args);
-                    return objects;
+                MappedStatement statement = configuration.getMappedStatementMap().get(statementId);
+                String sqlType = statement.getSqlType();
+                LOGGER.debug("sqlType is " + sqlType);
+
+                Object o;
+
+                switch (sqlType) {
+                    case "select" : {
+                        Type genericReturnType = method.getGenericReturnType();
+                        if (genericReturnType instanceof ParameterizedType) {
+                            //判断是否进行了 泛型类型参数化;即方法的返回值是否带有泛型，如果有则执行selectList
+                            List<Object> objects = selectList(statementId, args);
+                            return objects;
+                        }
+
+                        //如果没有则调用selectOne
+                        o = selectOne(statementId, args);
+                    }
+                        break;
+
+                    case "insert" : o = inser(statementId,args);
+                        break;
+                    case "update" : o = update(statementId,args);
+                        break;
+                    case "delete" : o = delete(statementId,args);
+                        break;
+                    default: throw new RuntimeException("语法错误 sqlType is " + sqlType);
                 }
 
-                //如果没有则调用selectOne
-                Object o = selectOne(statementId, args);
-
                 return o;
+
             }
         });
 
 
         //返回的是一个代理对象
         return (T) proxyInstance;
+    }
+
+
+    /**
+     * 插入、更新、删除
+     * @param statementId
+     * @param params
+     * @return
+     * @throws Exception
+     */
+    private int doUpdate(String statementId, Object... params) throws Exception {
+        Executor executor = new SimpleExecutor();
+        int count = executor.doUpdate(configuration,configuration.getMappedStatementMap().get(statementId),params);
+
+        return count;
     }
 }

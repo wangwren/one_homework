@@ -37,6 +37,7 @@ public class Main {
             //执行sql，返回结果集
             resultSet = statement.executeQuery();
 
+
             //遍历结果集，封装对象
             while (resultSet.next()) {
                 int id = resultSet.getInt("id");

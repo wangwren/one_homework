@@ -18,6 +18,32 @@ public interface SqlSession {
      */
     <E> E selectOne(String statementId,Object... params) throws Exception;
 
+    /**
+     * 插入数据
+     * @param statementId
+     * @param params
+     * @throws Exception
+     */
+    int inser(String statementId,Object... params) throws Exception;
+
+    /**
+     * 更新语句
+     * @param statementId
+     * @param params
+     * @return
+     * @throws Exception
+     */
+    int update(String statementId,Object... params) throws Exception;
+
+    /**
+     * 删除语句
+     * @param statementId
+     * @param params
+     * @return
+     * @throws Exception
+     */
+    int delete(String statementId,Object... params) throws Exception;
+
 
     /**
      * 动态代理
