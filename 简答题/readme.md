@@ -51,19 +51,28 @@ include可以把大量重复的代码整理起来，当使用的时候直接incl
 
 #### Mybatis是否支持延迟加载？如果支持，它的实现原理是什么？
 
+- Mybatis 仅支持 `association` 关联对象和 `collection` 关联集合对象的延迟加载，`association` 指的就是一对一，`collection` 指的就是一对多查询。在 Mybatis配置文件中，可以配置是否启用延迟加载 `lazyLoadingEnabled=true|false`
 
-
-
+- 原理：使用 CGLIB 创建目标对象的代理对象，当调用目标方法时，进入拦截器方法，比如调用 `a.getB().getName()`，拦截器` invoke()`方法发现 `a.getB()`值是null ，那么就会单独发送事先保存好的查询关联 B 对象的 sql，把 B 查询上来，然后调用`a.setB(b)`，于是 a 的对象 b 属性就有值了，接着完`a.getB().getName()`方法的调用。这就是延迟加载的基本原理。
 
 #### Mybatis都有哪些Executor执行器？它们之间的区别是什么？
 
+- `SimpleExecutor`：每执行一次update或select，就开启一个Statement对象，用完立刻关闭Statement对象。
 
+- `ReuseExecutor`：执行update或select，以sql作为key查找Statement对象，存在就使用，不存在就创建，用完后，不关闭Statement对象，而是放置于Map内，供下一次使用。简言之，就是重复使用Statement对象。
+
+- `BatchExecutor`：执行update（没有select，JDBC批处理不支持select），将所有sql都添加到批处理中`addBatch()`，等待统一执行`executeBatch()`，它缓存了多个Statement对象，每个Statement对象都是`addBatch()`完毕后，等待逐一执行`executeBatch()`批处理。与JDBC批处理相同。
+
+作用范围：`Executor`的这些特点，都严格限制在SqlSession生命周期范围内。
+
+默认是`SimplExcutor`，需要配置在创建SqlSession对象的时候指定执行器的类型即可
 
 
 
 #### 简述下Mybatis的一级、二级缓存（分别从存储结构、范围、失效场景。三个方面来作答）？
 
-
+- 一级缓存：一级缓存的结构是HashMap，Mybatis的一级缓存是指SqlSession级别的，作用域是SqlSession，Mybatis默认开启一级缓存，在同一个SqlSession中，相同的Sql查询的时候，第一次查询的时候，就会从缓存中取，如果发现没有数据，那么就从数据库查询出来，并且缓存到HashMap中，如果下次还是相同的查询，就直接从缓存中查询，就不在去查询数据库，对应的就不在去执行SQL语句。当查询到的数据，进行增删改的操作的时候，缓存将会失效。在spring容器管理中每次查询都是创建一个新的sqlSession，所以在分布式环境中不会出现数据不一致的问题。
+- 二级缓存：二级缓存底层还是HashMap，二级缓存是mapper级别的缓存，多个SqlSession去操作同一个mapper的sql语句，多个SqlSession可以共用二级缓存，二级缓存是跨SqlSession。第一次调用mapper下的sql 的时候去查询信息，查询到的信息会存放到该mapper对应的二级缓存区域，第二次调用namespace下的mapper映射文件中，相同的SQL去查询，回去对应的二级缓存内取结果，使用值需要开启cache标签，在select上添加useCache属性为true，在更新和删除时候需要手动开启flushCache刷新缓存。但是二级缓存是单服务器工作，无法实现分布式缓存。
 
 
 
